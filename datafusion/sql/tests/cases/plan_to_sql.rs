@@ -31,8 +31,9 @@ use datafusion_functions_nested::map::map_udf;
 use datafusion_functions_window::rank::rank_udwf;
 use datafusion_sql::planner::{ContextProvider, PlannerContext, SqlToRel};
 use datafusion_sql::unparser::dialect::{
-    CustomDialectBuilder, DefaultDialect as UnparserDefaultDialect, DefaultDialect,
-    Dialect as UnparserDialect, MySqlDialect as UnparserMySqlDialect, SqliteDialect, BigQueryDialect as UnparserBigqueryDialect
+    BigQueryDialect as UnparserBigqueryDialect, CustomDialectBuilder,
+    DefaultDialect as UnparserDefaultDialect, DefaultDialect, Dialect as UnparserDialect,
+    MySqlDialect as UnparserMySqlDialect, SqliteDialect,
 };
 use datafusion_sql::unparser::{expr_to_sql, plan_to_sql, Unparser};
 use sqlparser::ast::Statement;
@@ -283,7 +284,7 @@ fn roundtrip_crossjoin() -> Result<()> {
 }
 
 #[test]
-fn roundtrip_statement_with_dialect() -> Result<()> { 
+fn roundtrip_statement_with_dialect() -> Result<()> {
     struct TestStatementWithDialect {
         sql: &'static str,
         expected: &'static str,
@@ -541,7 +542,7 @@ fn roundtrip_statement_with_dialect() -> Result<()> {
             expected: "SELECT min(*) AS `col_1` FROM (SELECT 1 AS `a`)",
             parser_dialect: Box::new(PostgreSqlDialect {}),
             unparser_dialect: Box::new(UnparserBigqueryDialect::new()),
-        }, 
+        },
         TestStatementWithDialect {
             sql: "select a as \"a*\", b as \"b@\" from (select 1 as a , 2 as b)",
             expected: "SELECT `a` AS `col_1`, `b` AS `col_2` FROM (SELECT 1 AS `a`, 2 AS `b`)",
