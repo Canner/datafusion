@@ -154,6 +154,9 @@ pub trait Dialect: Send + Sync {
         Ok(None)
     }
 
+    /// Allows the dialect to override column alias unparsing if the dialect has specific rules.
+    /// Returns None if the default unparsing should be used, or Some(String) if there is
+    /// a custom implementation for the alias.
     fn col_alias_overrides(
         &self,
         _unparser: &Unparser,
