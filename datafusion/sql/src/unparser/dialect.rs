@@ -19,7 +19,6 @@ use std::{collections::HashMap, sync::Arc};
 
 use super::{utils::character_length_to_sql, utils::date_part_to_sql, Unparser};
 use arrow::datatypes::TimeUnit;
-use datafusion_common::alias::AliasGenerator;
 use datafusion_common::Result;
 use datafusion_expr::Expr;
 use regex::Regex;
@@ -263,9 +262,7 @@ impl Dialect for DefaultDialect {
     }
 }
 #[derive(Default)]
-pub struct BigQueryDialect {
-    col_alias_generator: AliasGenerator,
-}
+pub struct BigQueryDialect {}
 
 impl Dialect for BigQueryDialect {
     fn identifier_quote_style(&self, _: &str) -> Option<char> {
@@ -279,25 +276,37 @@ impl Dialect for BigQueryDialect {
     ) -> Result<Option<String>> {
         // Check if alias contains any special characters not supported by BigQuery col names
         // https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
-        if alias.contains(
-            &[
-                '!', '"', '$', '(', ')', '*', ',', '.', '/', ';', '?', '@', '[', '\\',
-                ']', '^', '`', '{', '}', '~',
-            ][..],
-        ) {
-            Ok(Some(self.col_alias_generator.next("col")))
+        let special_chars = [
+            '!', '"', '$', '(', ')', '*', ',', '.', '/', ';', '?', '@', '[', '\\', ']',
+            '^', '`', '{', '}', '~',
+        ];
+
+        if alias.chars().any(|c| special_chars.contains(&c)) {
+            let mut encoded_name = String::new();
+            for c in alias.chars() {
+                match c {
+                    '!' | '"' | '$' | '(' | ')' | '*' | ',' | '.' | '/' | ';' | '?'
+                    | '@' | '[' | '\\' | ']' | '^' | '`' | '{' | '}' | '~' => {
+                        encoded_name.push_str(&format!("_{}", c as u32));
+                    }
+                    _ => encoded_name.push(c),
+                }
+            }
+            Ok(Some(encoded_name))
         } else {
             Ok(Some(alias.to_string()))
         }
+    }
+
+    fn unnest_as_table_factor(&self) -> bool {
+        true
     }
 }
 
 impl BigQueryDialect {
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            col_alias_generator: AliasGenerator::new(),
-        }
+        Self {}
     }
 }
 pub struct PostgreSqlDialect {}

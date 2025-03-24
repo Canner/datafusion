@@ -539,19 +539,25 @@ fn roundtrip_statement_with_dialect() -> Result<()> {
         },
         TestStatementWithDialect {
             sql: "select min(*) as \"min(*)\" from (select 1 as a)",
-            expected: "SELECT min(*) AS `col_1` FROM (SELECT 1 AS `a`)",
+            expected: "SELECT min(*) AS `min_40_42_41` FROM (SELECT 1 AS `a`)",
             parser_dialect: Box::new(PostgreSqlDialect {}),
             unparser_dialect: Box::new(UnparserBigqueryDialect::new()),
         },
         TestStatementWithDialect {
             sql: "select a as \"a*\", b as \"b@\" from (select 1 as a , 2 as b)",
-            expected: "SELECT `a` AS `col_1`, `b` AS `col_2` FROM (SELECT 1 AS `a`, 2 AS `b`)",
+            expected: "SELECT `a` AS `a_42`, `b` AS `b_64` FROM (SELECT 1 AS `a`, 2 AS `b`)",
             parser_dialect: Box::new(PostgreSqlDialect {}),
             unparser_dialect: Box::new(UnparserBigqueryDialect::new()),
         },
         TestStatementWithDialect {
             sql: "select a as \"a*\", b , c as \"c@\" from (select 1 as a , 2 as b, 3 as c)",
-            expected: "SELECT `a` AS `col_1`, `b`, `c` AS `col_2` FROM (SELECT 1 AS `a`, 2 AS `b`, 3 AS `c`)",
+            expected: "SELECT `a` AS `a_42`, `b`, `c` AS `c_64` FROM (SELECT 1 AS `a`, 2 AS `b`, 3 AS `c`)",
+            parser_dialect: Box::new(PostgreSqlDialect {}),
+            unparser_dialect: Box::new(UnparserBigqueryDialect::new()),
+        },
+        TestStatementWithDialect {
+            sql: "select * from (select a as \"a*\", b as \"b@\" from (select 1 as a , 2 as b)) where \"a*\" = 1",
+            expected: "SELECT * FROM (SELECT `a` AS `a_42`, `b` AS `b_64` FROM (SELECT 1 AS `a`, 2 AS `b`)) WHERE (`a_42` = 1)",
             parser_dialect: Box::new(PostgreSqlDialect {}),
             unparser_dialect: Box::new(UnparserBigqueryDialect::new()),
         },

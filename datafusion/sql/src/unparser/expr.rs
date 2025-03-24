@@ -675,21 +675,29 @@ impl Unparser<'_> {
     }
 
     fn col_to_sql(&self, col: &Column) -> Result<ast::Expr> {
+        // Encode column name if it contains special characters
+        let col_name = match self.dialect.col_alias_overrides(self, &col.name)? {
+            Some(encoded_name) => encoded_name,
+            None => col.name.to_string(),
+        };
+
         if let Some(table_ref) = &col.relation {
             let mut id = if self.dialect.full_qualified_col() {
                 table_ref.to_vec()
             } else {
                 vec![table_ref.table().to_string()]
             };
-            id.push(col.name.to_string());
+
+            id.push(col_name);
             return Ok(ast::Expr::CompoundIdentifier(
                 id.iter()
                     .map(|i| self.new_ident_quoted_if_needs(i.to_string()))
                     .collect(),
             ));
         }
+
         Ok(ast::Expr::Identifier(
-            self.new_ident_quoted_if_needs(col.name.to_string()),
+            self.new_ident_quoted_if_needs(col_name),
         ))
     }
 
