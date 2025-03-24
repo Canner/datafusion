@@ -276,7 +276,7 @@ impl Dialect for BigQueryDialect {
     ) -> Result<Option<String>> {
         // Check if alias contains any special characters not supported by BigQuery col names
         // https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
-        let special_chars = [
+        let special_chars: [char; 20] = [
             '!', '"', '$', '(', ')', '*', ',', '.', '/', ';', '?', '@', '[', '\\', ']',
             '^', '`', '{', '}', '~',
         ];
@@ -284,12 +284,10 @@ impl Dialect for BigQueryDialect {
         if alias.chars().any(|c| special_chars.contains(&c)) {
             let mut encoded_name = String::new();
             for c in alias.chars() {
-                match c {
-                    '!' | '"' | '$' | '(' | ')' | '*' | ',' | '.' | '/' | ';' | '?'
-                    | '@' | '[' | '\\' | ']' | '^' | '`' | '{' | '}' | '~' => {
-                        encoded_name.push_str(&format!("_{}", c as u32));
-                    }
-                    _ => encoded_name.push(c),
+                if special_chars.contains(&c) {
+                    encoded_name.push_str(&format!("_{}", c as u32));
+                } else {
+                    encoded_name.push(c);
                 }
             }
             Ok(Some(encoded_name))
