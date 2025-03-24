@@ -1044,10 +1044,10 @@ impl Unparser<'_> {
                     name.to_string()
                 };
 
-                return Ok(ast::SelectItem::ExprWithAlias {
+                Ok(ast::SelectItem::ExprWithAlias {
                     expr: inner,
                     alias: self.new_ident_quoted_if_needs(alias_name),
-                });
+                })
             }
             _ => {
                 let inner = self.expr_to_sql(expr)?;

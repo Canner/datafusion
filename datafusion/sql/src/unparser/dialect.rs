@@ -279,11 +279,12 @@ impl Dialect for BigQueryDialect {
     ) -> Result<Option<String>> {
         // Check if alias contains any special characters not supported by BigQuery col names
         // https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
-        if alias.contains(|c| match c {
-            '!' | '"' | '$' | '(' | ')' | '*' | ',' | '.' | '/' | ';' | '?' | '@'
-            | '[' | '\\' | ']' | '^' | '`' | '{' | '}' | '~' => true,
-            _ => false,
-        }) {
+        if alias.contains(
+            &[
+                '!', '"', '$', '(', ')', '*', ',', '.', '/', ';', '?', '@', '[', '\\',
+                ']', '^', '`', '{', '}', '~',
+            ][..],
+        ) {
             Ok(Some(self.col_alias_generator.next("col")))
         } else {
             Ok(Some(alias.to_string()))
