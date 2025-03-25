@@ -157,11 +157,7 @@ pub trait Dialect: Send + Sync {
     /// Allows the dialect to override column alias unparsing if the dialect has specific rules.
     /// Returns None if the default unparsing should be used, or Some(String) if there is
     /// a custom implementation for the alias.
-    fn col_alias_overrides(
-        &self,
-        _unparser: &Unparser,
-        _alias: &str,
-    ) -> Result<Option<String>> {
+    fn col_alias_overrides(&self, _alias: &str) -> Result<Option<String>> {
         Ok(None)
     }
 
@@ -272,11 +268,7 @@ impl Dialect for BigQueryDialect {
         Some('`')
     }
 
-    fn col_alias_overrides(
-        &self,
-        _unparser: &Unparser,
-        alias: &str,
-    ) -> Result<Option<String>> {
+    fn col_alias_overrides(&self, alias: &str) -> Result<Option<String>> {
         // Check if alias contains any special characters not supported by BigQuery col names
         // https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
         let special_chars: [char; 20] = [

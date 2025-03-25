@@ -1036,13 +1036,12 @@ impl Unparser<'_> {
                 let inner = self.expr_to_sql(expr)?;
 
                 // Determine the alias name to use
-                let alias_name = if let Some(new_name) =
-                    self.dialect.col_alias_overrides(self, name)?
-                {
-                    new_name.to_string()
-                } else {
-                    name.to_string()
-                };
+                let alias_name =
+                    if let Some(new_name) = self.dialect.col_alias_overrides(name)? {
+                        new_name.to_string()
+                    } else {
+                        name.to_string()
+                    };
 
                 Ok(ast::SelectItem::ExprWithAlias {
                     expr: inner,
