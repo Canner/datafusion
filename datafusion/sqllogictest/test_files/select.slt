@@ -1066,13 +1066,13 @@ FROM (
     ) AS a
 ) AS b
 ----
-a 5 -38
-a 5 -54
-a 6 36
-a 6 -31
-a 5 65
 a 5 -101
+a 5 -54
+a 5 -38
+a 5 65
 a 6 -101
+a 6 -31
+a 6 36
 
 # nested select without aliases
 query TII
@@ -1087,13 +1087,13 @@ FROM (
     )
 )
 ----
-a 5 -38
-a 5 -54
-a 6 36
-a 6 -31
-a 5 65
 a 5 -101
+a 5 -54
+a 5 -38
+a 5 65
 a 6 -101
+a 6 -31
+a 6 36
 
 # select with join unaliased subqueries
 query TIITII

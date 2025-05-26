@@ -3982,7 +3982,8 @@ logical_plan
 02)--SubqueryAlias: lhs
 03)----TableScan: left_table_no_nulls projection=[a, b]
 04)--SubqueryAlias: rhs
-05)----TableScan: right_table_no_nulls projection=[a, b]
+05)----Sort: right_table_no_nulls.b ASC NULLS LAST
+06)------TableScan: right_table_no_nulls projection=[a, b]
 physical_plan
 01)ProjectionExec: expr=[a@2 as a, b@3 as b, a@0 as a, b@1 as b]
 02)--CoalesceBatchesExec: target_batch_size=3
