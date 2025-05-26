@@ -50,6 +50,11 @@ impl QueryBuilder {
         self.order_by = value;
         self
     }
+
+    pub fn already_ordered(&self) -> bool {
+        !self.order_by.is_empty()
+    }
+
     pub fn limit(&mut self, value: Option<ast::Expr>) -> &mut Self {
         self.limit = value;
         self

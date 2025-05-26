@@ -1712,3 +1712,26 @@ fn test_unparse_optimized_multi_union() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_unparse_nested_sort() -> Result<()> {
+    let schema = Schema::new(vec![
+        Field::new("id", DataType::Utf8, false),
+        Field::new("age", DataType::Utf8, false),
+    ]);
+
+    let table_scan = table_scan(Some("t1"), &schema, None)?;
+    let plan = LogicalPlanBuilder::from(table_scan)
+        .project(vec![col("id"), col("age")])?
+        .sort_by(vec![col("age")])?
+        .project(vec![col("id")])?
+        .sort_by(vec![col("id")])?
+        .limit(0, Some(10))?
+        .build()?;
+    let sql = plan_to_sql(&plan)?;
+    assert_eq!(
+        sql.to_string(),
+        "SELECT t1.id FROM t1 ORDER BY t1.id ASC NULLS LAST LIMIT 10"
+    );
+    Ok(())
+}

@@ -487,7 +487,11 @@ impl Unparser<'_> {
                     })
                     .collect::<Result<Vec<_>>>()?;
 
-                query_ref.order_by(self.sorts_to_sql(&sort_exprs)?);
+                // If the sort expressions has been set by the most outer plan,
+                // we can ignore the sort expressions in the inner plan
+                if !query_ref.already_ordered() {
+                    query_ref.order_by(self.sorts_to_sql(&sort_exprs)?);
+                }
 
                 self.select_to_sql_recursively(
                     sort.input.as_ref(),
