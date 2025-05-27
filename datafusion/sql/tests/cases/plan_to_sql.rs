@@ -1721,7 +1721,7 @@ fn test_unparse_nested_sort() -> Result<()> {
     ]);
 
     let table_scan = table_scan(Some("t1"), &schema, None)?;
-    let plan = LogicalPlanBuilder::from(table_scan)
+    let plan = table_scan
         .project(vec![col("id"), col("age")])?
         .sort_by(vec![col("age")])?
         .project(vec![col("id")])?
