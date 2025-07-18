@@ -265,7 +265,7 @@ config_namespace! {
         /// - `null_min`: Nulls appear first in ascending order.
         /// - `nulls_first`: Nulls always be first in any order.
         /// - `nulls_last`: Nulls always be last in any order.
-        /// 
+        ///
         /// By default, `null_max` is used to follow Postgres's behavior.
         /// postgres rule: <https://www.postgresql.org/docs/current/queries-order.html>
         pub default_null_ordering: String, default = "null_max".to_string()
