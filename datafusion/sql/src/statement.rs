@@ -1345,7 +1345,9 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
                                 )
                                 .unwrap();
                             let asc = order_by_expr.asc.unwrap_or(true);
-                            let nulls_first = order_by_expr.nulls_first.unwrap_or(!asc);
+                            let nulls_first = order_by_expr
+                                .nulls_first
+                                .unwrap_or(self.options.default_null_ordering.eval(asc));
 
                             SortExpr::new(ordered_expr, asc, nulls_first)
                         })

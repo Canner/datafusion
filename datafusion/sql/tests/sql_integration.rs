@@ -36,7 +36,7 @@ use datafusion_expr::{
 use datafusion_functions::{string, unicode};
 use datafusion_sql::{
     parser::DFParser,
-    planner::{ParserOptions, SqlToRel},
+    planner::{NullOrdering, ParserOptions, SqlToRel},
 };
 
 use crate::common::{CustomExprPlanner, CustomTypePlanner, MockSessionState};
@@ -94,6 +94,7 @@ fn parse_decimals() {
                 support_varchar_with_length: false,
                 enable_options_value_normalization: false,
                 collect_spans: false,
+                default_null_ordering: NullOrdering::AscReverse,
             },
         );
     }
@@ -150,6 +151,7 @@ fn parse_ident_normalization() {
                 support_varchar_with_length: false,
                 enable_options_value_normalization: false,
                 collect_spans: false,
+                default_null_ordering: NullOrdering::AscReverse,
             },
         );
         if plan.is_ok() {
