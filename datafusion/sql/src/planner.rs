@@ -77,9 +77,9 @@ impl ParserOptions {
             support_varchar_with_length: true,
             enable_options_value_normalization: false,
             collect_spans: false,
-            // By default, `null_max` is used to follow Postgres's behavior.
+            // By default, `nulls_max` is used to follow Postgres's behavior.
             // postgres rule: https://www.postgresql.org/docs/current/queries-order.html
-            default_null_ordering: NullOrdering::NullMax,
+            default_null_ordering: NullOrdering::NullsMax,
         }
     }
 
@@ -159,10 +159,10 @@ impl From<&SqlParserOptions> for ParserOptions {
 /// Represents the null ordering for sorting expressions.
 #[derive(Debug, Clone, Copy)]
 pub enum NullOrdering {
-    /// Null values appear last in ascending order.
-    NullMax,
-    /// Null values appear first in descending order.
-    NullMin,
+    /// Nulls appear last in ascending order.
+    NullsMax,
+    /// Nulls appear first in descending order.
+    NullsMin,
     /// Nulls appear first.
     NullsFirst,
     /// Nulls appear last.
@@ -177,8 +177,8 @@ impl NullOrdering {
     /// * `false` if nulls should appear last.
     pub fn eval(&self, asc: bool) -> bool {
         match self {
-            Self::NullMax => !asc,
-            Self::NullMin => asc,
+            Self::NullsMax => !asc,
+            Self::NullsMin => asc,
             Self::NullsFirst => true,
             Self::NullsLast => false,
         }
@@ -190,8 +190,8 @@ impl FromStr for NullOrdering {
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "null_max" => Ok(Self::NullMax),
-            "null_min" => Ok(Self::NullMin),
+            "nulls_max" => Ok(Self::NullsMax),
+            "nulls_min" => Ok(Self::NullsMin),
             "nulls_first" => Ok(Self::NullsFirst),
             "nulls_last" => Ok(Self::NullsLast),
             _ => plan_err!("Unknown null ordering: {s}"),
@@ -201,7 +201,7 @@ impl FromStr for NullOrdering {
 
 impl From<&str> for NullOrdering {
     fn from(s: &str) -> Self {
-        Self::from_str(s).unwrap_or(Self::NullMax)
+        Self::from_str(s).unwrap_or(Self::NullsMax)
     }
 }
 
