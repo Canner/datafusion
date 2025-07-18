@@ -94,7 +94,7 @@ fn parse_decimals() {
                 support_varchar_with_length: false,
                 enable_options_value_normalization: false,
                 collect_spans: false,
-                default_null_ordering: NullOrdering::AscReverse,
+                default_null_ordering: NullOrdering::NullMax,
             },
         );
     }
@@ -151,7 +151,7 @@ fn parse_ident_normalization() {
                 support_varchar_with_length: false,
                 enable_options_value_normalization: false,
                 collect_spans: false,
-                default_null_ordering: NullOrdering::AscReverse,
+                default_null_ordering: NullOrdering::NullMax,
             },
         );
         if plan.is_ok() {

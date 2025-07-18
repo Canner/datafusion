@@ -95,9 +95,9 @@ NULL three
 2 two
 
 statement ok
-set datafusion.sql_parser.default_null_ordering = 'desc_reverse';
+set datafusion.sql_parser.default_null_ordering = 'null_min';
 
-# test asc with `desc_reverse` null ordering
+# test asc with `null_min` null ordering
 
 query IT
 SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (null, 'three')) AS t (num,letter) ORDER BY num
@@ -106,7 +106,7 @@ NULL three
 1 one
 2 two
 
-# test desc with `desc_reverse` null ordering
+# test desc with `null_min` null ordering
 
 query IT
 SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (null, 'three')) AS t (num,letter) ORDER BY num DESC
