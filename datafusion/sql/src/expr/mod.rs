@@ -1137,6 +1137,12 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
                     }) => Ok(Some(GetFieldAccess::NamedStructField {
                         name: ScalarValue::from(s),
                     })),
+                    SQLExpr::Identifier(ident) => {
+                        // If the identifier is a valid field name, treat it as a named field access
+                        Ok(Some(GetFieldAccess::NamedStructField {
+                            name: ScalarValue::from(ident.value),
+                        }))
+                    }
                     _ => {
                         not_impl_err!(
                             "Dot access not supported for non-string expr: {expr:?}"

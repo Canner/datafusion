@@ -219,6 +219,27 @@ impl ContextProvider for MockContextProvider {
                     false,
                 ),
             ])),
+            "struct_table" => Ok(Schema::new(vec![
+                Field::new(
+                    "struct_col",
+                    DataType::Struct(Fields::from(vec![
+                        Field::new("field1", DataType::Int64, true),
+                        Field::new("field2", DataType::Utf8, true),
+                    ])),
+                    false,
+                ),
+                Field::new(
+                    "struct_array_col",
+                    DataType::List(Arc::new(Field::new_list_field(
+                        DataType::Struct(Fields::from(vec![
+                            Field::new("field1", DataType::Int64, true),
+                            Field::new("field2", DataType::Utf8, true),
+                        ])),
+                        true,
+                    ))),
+                    false,
+                ),
+            ])),
             _ => plan_err!("No table named: {} found", name.table()),
         };
 

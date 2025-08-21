@@ -30,6 +30,8 @@ use datafusion_expr::{
     Volatility,
 };
 use datafusion_functions::{string, unicode};
+use datafusion_functions_nested::extract::array_element_udf;
+use datafusion_functions_nested::planner::FieldAccessPlanner;
 use datafusion_sql::{
     parser::DFParser,
     planner::{NullOrdering, ParserOptions, SqlToRel},
@@ -3290,6 +3292,7 @@ fn logical_plan_with_dialect_and_options(
             vec![DataType::Int64],
             DataType::Int64,
         )))
+        .with_scalar_function(array_element_udf())
         .with_aggregate_function(sum_udaf())
         .with_aggregate_function(approx_median_udaf())
         .with_aggregate_function(count_udaf())
@@ -3298,7 +3301,8 @@ fn logical_plan_with_dialect_and_options(
         .with_aggregate_function(max_udaf())
         .with_aggregate_function(grouping_udaf())
         .with_window_function(rank_udwf())
-        .with_expr_planner(Arc::new(CoreFunctionPlanner::default()));
+        .with_expr_planner(Arc::new(CoreFunctionPlanner::default()))
+        .with_expr_planner(Arc::new(FieldAccessPlanner));
 
     let context = MockContextProvider { state };
     let planner = SqlToRel::new_with_options(&context, options);
@@ -4744,5 +4748,15 @@ fn test_using_join_wildcard_schema() {
             "t2.c".to_string(),
             "t3.d".to_string()
         ]
+    );
+}
+
+#[test]
+fn test_compound_access_with_dot() {
+    let sql = "SELECT struct_array_col[1].field1 FROM struct_table";
+    let plan = logical_plan(sql).unwrap();
+    assert_eq!(
+        plan.schema().field_names(),
+        ["struct_table.struct_array_col[Int64(1)][field1]".to_string()]
     );
 }
