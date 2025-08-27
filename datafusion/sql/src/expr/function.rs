@@ -101,7 +101,7 @@ struct FunctionArgs {
 }
 
 impl FunctionArgs {
-    pub fn try_new(function: SQLFunction) -> Result<Self> {
+    fn try_new(function: SQLFunction) -> Result<Self> {
         let SQLFunction {
             name,
             args,
