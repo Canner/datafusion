@@ -31,7 +31,9 @@ use datafusion_expr::{
     WindowFunctionDefinition,
 };
 use sqlparser::ast::{
-    DuplicateTreatment, Expr as SQLExpr, Function as SQLFunction, FunctionArg, FunctionArgExpr, FunctionArgumentClause, FunctionArgumentList, FunctionArguments, Ident, NullTreatment, ObjectName, OrderByExpr, Spanned, ValueWithSpan, WindowType
+    DuplicateTreatment, Expr as SQLExpr, Function as SQLFunction, FunctionArg,
+    FunctionArgExpr, FunctionArgumentClause, FunctionArgumentList, FunctionArguments,
+    Ident, NullTreatment, ObjectName, OrderByExpr, Spanned, ValueWithSpan, WindowType,
 };
 
 /// Suggest a valid function based on an invalid input function name
