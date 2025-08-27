@@ -31,9 +31,7 @@ use datafusion_expr::{
     WindowFunctionDefinition,
 };
 use sqlparser::ast::{
-    DuplicateTreatment, Expr as SQLExpr, Function as SQLFunction, FunctionArg,
-    FunctionArgExpr, FunctionArgumentClause, FunctionArgumentList, FunctionArguments,
-    Ident, NullTreatment, ObjectName, OrderByExpr, Spanned, WindowType,
+    DuplicateTreatment, Expr as SQLExpr, Function as SQLFunction, FunctionArg, FunctionArgExpr, FunctionArgumentClause, FunctionArgumentList, FunctionArguments, Ident, NullTreatment, ObjectName, OrderByExpr, Spanned, ValueWithSpan, WindowType
 };
 
 /// Suggest a valid function based on an invalid input function name
@@ -670,10 +668,10 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
             self.sql_fn_arg_to_logical_expr(end_date, schema, planner_context)?;
         let granularity = self.sql_datetime_field_to_logical_expr(granularity)?;
 
-        return Ok(Expr::ScalarFunction(ScalarFunction::new_udf(
+        Ok(Expr::ScalarFunction(ScalarFunction::new_udf(
             fm,
             vec![start_date, end_date, granularity],
-        )));
+        )))
     }
 
     pub(crate) fn sql_datetime_field_to_logical_expr(
@@ -687,12 +685,15 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
                         let s = value.to_lowercase();
                         Ok(Expr::Literal(ScalarValue::Utf8(Some(s)), None))
                     }
+                    SQLExpr::Value(ValueWithSpan { value: sqlparser::ast::Value::SingleQuotedString(value), .. }) => {
+                        Ok(Expr::Literal(ScalarValue::Utf8(Some(value)), None))
+                    }
                     _ => plan_err!(
-                        "Invalid argument for date part: {expr}. It must be a single quoted string"
-                    ),
+                        "Invalid argument for date part: {expr}. It must be a single quoted string or datetime field"
+                    )
                 }
             },
-            _ => plan_err!("Invalid argument for date part: {arg}. It must be a single quoted string"),
+            _ => plan_err!("Invalid argument for date part: {arg}. It must be a single quoted string or datetime field"),
         }
     }
 }
