@@ -57,7 +57,7 @@ use datafusion_macros::user_doc;
     argument(
         name = "expression2",
         description = "Time expression to operate on. Can be a constant, column, or function."
-    ),
+    )
 )]
 #[derive(Debug)]
 pub struct DateDiffFunc {
@@ -76,16 +76,17 @@ impl DateDiffFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
-                vec![TypeSignature::Coercible(vec![
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
-                ]),
-                TypeSignature::Coercible(vec![
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                    Coercion::new_exact(TypeSignatureClass::Timestamp),
-                    Coercion::new_exact(TypeSignatureClass::Timestamp),
-                ])
+                vec![
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                    ]),
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
+                    ]),
                 ],
                 datafusion_expr::Volatility::Immutable,
             ),
