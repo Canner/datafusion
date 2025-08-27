@@ -664,7 +664,6 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
             return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
         };
 
-
         let start_date =
             self.sql_fn_arg_to_logical_expr(start_date, schema, planner_context)?;
         let end_date =
