@@ -25,6 +25,7 @@ pub mod common;
 pub mod current_date;
 pub mod current_time;
 pub mod date_bin;
+pub mod date_diff;
 pub mod date_part;
 pub mod date_trunc;
 pub mod from_unixtime;
@@ -42,6 +43,7 @@ make_udf_function!(current_time::CurrentTimeFunc, current_time);
 make_udf_function!(date_bin::DateBinFunc, date_bin);
 make_udf_function!(date_part::DatePartFunc, date_part);
 make_udf_function!(date_trunc::DateTruncFunc, date_trunc);
+make_udf_function!(date_diff::DateDiffFunc, date_diff);
 make_udf_function!(make_date::MakeDateFunc, make_date);
 make_udf_function!(from_unixtime::FromUnixtimeFunc, from_unixtime);
 make_udf_function!(now::NowFunc, now);
@@ -87,6 +89,10 @@ pub mod expr_fn {
         make_date,
         "make a date from year, month and day component parts",
         year month day
+    ),(
+        date_diff,
+        "returns the difference between two dates or timestamps.",
+        args,
     ),(
         now,
         "returns the current timestamp in nanoseconds, using the same value for all instances of now() in same statement",
@@ -260,6 +266,7 @@ pub fn functions() -> Vec<Arc<ScalarUDF>> {
         date_bin(),
         date_part(),
         date_trunc(),
+        date_diff(),
         from_unixtime(),
         make_date(),
         now(),
