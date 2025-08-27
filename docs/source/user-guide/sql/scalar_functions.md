@@ -2094,13 +2094,11 @@ FROM VALUES ('2023-01-01T18:18:18Z'), ('2023-01-03T19:00:03Z')  t(time);
 Returns the difference between two dates or timestamps.
 
 ```sql
-date_diff(expression1, expression2, unit)
+date_diff(unit, expression1, expression2)
 ```
 
 #### Arguments
 
-- **expression1**: Time expression to operate on. Can be a constant, column, or function.
-- **expression2**: Time expression to operate on. Can be a constant, column, or function.
 - **unit**: The unit of time to use for the difference calculation. Supported units are:
 
   - year
@@ -2108,6 +2106,14 @@ date_diff(expression1, expression2, unit)
   - month
   - week (week of the year)
   - day (day of the month)
+  - hour
+  - minute
+  - second
+  - millisecond
+  - microsecond
+
+- **expression1**: Time expression to operate on. Can be a constant, column, or function.
+- **expression2**: Time expression to operate on. Can be a constant, column, or function.
 
 #### Aliases
 

@@ -33,15 +33,7 @@ use datafusion_macros::user_doc;
 #[user_doc(
     doc_section(label = "Time and Date Functions"),
     description = "Returns the difference between two dates or timestamps.",
-    syntax_example = "date_diff(expression1, expression2, unit)",
-    argument(
-        name = "expression1",
-        description = "Time expression to operate on. Can be a constant, column, or function."
-    ),
-    argument(
-        name = "expression2",
-        description = "Time expression to operate on. Can be a constant, column, or function."
-    ),
+    syntax_example = "date_diff(unit, expression1, expression2)",
     argument(
         name = "unit",
         description = r#"The unit of time to use for the difference calculation. Supported units are:
@@ -51,7 +43,20 @@ use datafusion_macros::user_doc;
     - month
     - week (week of the year)
     - day (day of the month)
+    - hour
+    - minute
+    - second
+    - millisecond
+    - microsecond
 "#
+    ),
+    argument(
+        name = "expression1",
+        description = "Time expression to operate on. Can be a constant, column, or function."
+    ),
+    argument(
+        name = "expression2",
+        description = "Time expression to operate on. Can be a constant, column, or function."
     )
 )]
 #[derive(Debug)]
@@ -71,11 +76,18 @@ impl DateDiffFunc {
     pub fn new() -> Self {
         Self {
             signature: Signature::one_of(
-                vec![TypeSignature::Coercible(vec![
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
-                    Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
-                ])],
+                vec![
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_date())),
+                    ]),
+                    TypeSignature::Coercible(vec![
+                        Coercion::new_exact(TypeSignatureClass::Native(logical_string())),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
+                        Coercion::new_exact(TypeSignatureClass::Timestamp),
+                    ]),
+                ],
                 datafusion_expr::Volatility::Immutable,
             ),
             aliases: vec![String::from("datediff")],

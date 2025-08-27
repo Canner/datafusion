@@ -654,13 +654,13 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
             return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
         }
         let mut args_iter = args.into_iter();
+        let Some(granularity) = args_iter.next() else {
+            return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
+        };
         let Some(start_date) = args_iter.next() else {
             return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
         };
         let Some(end_date) = args_iter.next() else {
-            return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
-        };
-        let Some(granularity) = args_iter.next() else {
             return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
         };
 
@@ -672,7 +672,7 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
 
         Ok(Expr::ScalarFunction(ScalarFunction::new_udf(
             fm,
-            vec![start_date, end_date, granularity],
+            vec![granularity, start_date, end_date],
         )))
     }
 
