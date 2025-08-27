@@ -15,22 +15,25 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use std::sync::Arc;
+
 use crate::planner::{ContextProvider, PlannerContext, SqlToRel};
 
 use arrow::datatypes::DataType;
 use datafusion_common::{
     internal_datafusion_err, internal_err, not_impl_err, plan_datafusion_err, plan_err,
-    DFSchema, Dependency, Diagnostic, Result, Span,
+    DFSchema, Dependency, Diagnostic, Result, ScalarValue, Span,
 };
 use datafusion_expr::expr::{ScalarFunction, Unnest, WildcardOptions};
 use datafusion_expr::planner::{PlannerResult, RawAggregateExpr, RawWindowExpr};
 use datafusion_expr::{
-    expr, Expr, ExprFunctionExt, ExprSchemable, WindowFrame, WindowFunctionDefinition,
+    expr, Expr, ExprFunctionExt, ExprSchemable, ScalarUDF, WindowFrame,
+    WindowFunctionDefinition,
 };
 use sqlparser::ast::{
     DuplicateTreatment, Expr as SQLExpr, Function as SQLFunction, FunctionArg,
     FunctionArgExpr, FunctionArgumentClause, FunctionArgumentList, FunctionArguments,
-    NullTreatment, ObjectName, OrderByExpr, Spanned, WindowType,
+    Ident, NullTreatment, ObjectName, OrderByExpr, Spanned, ValueWithSpan, WindowType,
 };
 
 /// Suggest a valid function based on an invalid input function name
@@ -267,8 +270,17 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
                 }
             }
         }
+
         // User-defined function (UDF) should have precedence
         if let Some(fm) = self.context_provider.get_function_meta(&name) {
+            if fm.name().eq("date_diff") {
+                return self.sql_datediff_to_logical_expr(
+                    args,
+                    fm,
+                    schema,
+                    planner_context,
+                );
+            }
             let args = self.function_args_to_expr(args, schema, planner_context)?;
             return Ok(Expr::ScalarFunction(ScalarFunction::new_udf(fm, args)));
         }
@@ -289,6 +301,7 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
                 "Aggregate ORDER BY is not implemented for window functions"
             );
         }
+
         // Then, window function
         if let Some(WindowType::WindowSpec(window)) = over {
             let partition_by = window
@@ -627,6 +640,62 @@ impl<S: ContextProvider> SqlToRel<'_, S> {
             _ => {
                 plan_err!("unnest() can only be applied to array, struct and null")
             }
+        }
+    }
+
+    pub(crate) fn sql_datediff_to_logical_expr(
+        &self,
+        args: Vec<FunctionArg>,
+        fm: Arc<ScalarUDF>,
+        schema: &DFSchema,
+        planner_context: &mut PlannerContext,
+    ) -> Result<Expr> {
+        if args.len() != 3 {
+            return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
+        }
+        let mut args_iter = args.into_iter();
+        let Some(start_date) = args_iter.next() else {
+            return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
+        };
+        let Some(end_date) = args_iter.next() else {
+            return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
+        };
+        let Some(granularity) = args_iter.next() else {
+            return plan_err!("date_diff() requires exactly three arguments: start_date, end_date, granularity");
+        };
+
+        let start_date =
+            self.sql_fn_arg_to_logical_expr(start_date, schema, planner_context)?;
+        let end_date =
+            self.sql_fn_arg_to_logical_expr(end_date, schema, planner_context)?;
+        let granularity = self.sql_datetime_field_to_logical_expr(granularity)?;
+
+        Ok(Expr::ScalarFunction(ScalarFunction::new_udf(
+            fm,
+            vec![start_date, end_date, granularity],
+        )))
+    }
+
+    pub(crate) fn sql_datetime_field_to_logical_expr(
+        &self,
+        arg: FunctionArg,
+    ) -> Result<Expr> {
+        match arg {
+            FunctionArg::Unnamed(FunctionArgExpr::Expr(expr)) => {
+                match expr {
+                    SQLExpr::Identifier(Ident { value, .. }) => {
+                        let s = value.to_lowercase();
+                        Ok(Expr::Literal(ScalarValue::Utf8(Some(s)), None))
+                    }
+                    SQLExpr::Value(ValueWithSpan { value: sqlparser::ast::Value::SingleQuotedString(value), .. }) => {
+                        Ok(Expr::Literal(ScalarValue::Utf8(Some(value)), None))
+                    }
+                    _ => plan_err!(
+                        "Invalid argument for date part: {expr}. It must be a single quoted string or datetime field"
+                    )
+                }
+            },
+            _ => plan_err!("Invalid argument for date part: {arg}. It must be a single quoted string or datetime field"),
         }
     }
 }

@@ -1986,9 +1986,11 @@ Additional examples can be found [here](https://github.com/apache/datafusion/blo
 - [current_time](#current_time)
 - [current_timestamp](#current_timestamp)
 - [date_bin](#date_bin)
+- [date_diff](#date_diff)
 - [date_format](#date_format)
 - [date_part](#date_part)
 - [date_trunc](#date_trunc)
+- [datediff](#datediff)
 - [datepart](#datepart)
 - [datetrunc](#datetrunc)
 - [from_unixtime](#from_unixtime)
@@ -2087,6 +2089,30 @@ FROM VALUES ('2023-01-01T18:18:18Z'), ('2023-01-03T19:00:03Z')  t(time);
 2 row(s) fetched.
 ```
 
+### `date_diff`
+
+Returns the difference between two dates or timestamps.
+
+```sql
+date_diff(expression1, expression2, unit)
+```
+
+#### Arguments
+
+- **expression1**: Time expression to operate on. Can be a constant, column, or function.
+- **expression2**: Time expression to operate on. Can be a constant, column, or function.
+- **unit**: The unit of time to use for the difference calculation. Supported units are:
+
+  - year
+  - quarter (emits value in inclusive range [1, 4] based on which quartile of the year the date is in)
+  - month
+  - week (week of the year)
+  - day (day of the month)
+
+#### Aliases
+
+- datediff
+
 ### `date_format`
 
 _Alias of [to_char](#to_char)._
@@ -2156,6 +2182,10 @@ date_trunc(precision, expression)
 #### Aliases
 
 - datetrunc
+
+### `datediff`
+
+_Alias of [date_diff](#date_diff)._
 
 ### `datepart`
 
