@@ -21,6 +21,8 @@ use std::ops::ControlFlow;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{self, visit_expressions_mut, OrderByKind, SelectFlavor};
 
+use crate::unparser::utils::UNNAMED_FLATTEN_SUBQUERY_PREFIX;
+
 #[derive(Clone)]
 pub struct QueryBuilder {
     with: Option<ast::With>,
@@ -404,10 +406,12 @@ pub struct RelationBuilder {
 #[allow(dead_code)]
 #[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
-enum TableFactorBuilder {
+pub(crate) enum TableFactorBuilder {
     Table(TableRelationBuilder),
     Derived(DerivedRelationBuilder),
     Unnest(UnnestRelationBuilder),
+    Function(FunctionRelationBuilder),
+    TableFunction(TableFunctionRelationBuilder),
     Empty,
 }
 
@@ -430,6 +434,16 @@ impl RelationBuilder {
         self
     }
 
+    pub fn function(&mut self, value: FunctionRelationBuilder) -> &mut Self {
+        self.relation = Some(TableFactorBuilder::Function(value));
+        self
+    }
+
+    pub fn table_function(&mut self, value: TableFunctionRelationBuilder) -> &mut Self {
+        self.relation = Some(TableFactorBuilder::TableFunction(value));
+        self
+    }
+
     pub fn empty(&mut self) -> &mut Self {
         self.relation = Some(TableFactorBuilder::Empty);
         self
@@ -446,6 +460,31 @@ impl RelationBuilder {
             Some(TableFactorBuilder::Unnest(ref mut rel_builder)) => {
                 rel_builder.alias = value;
             }
+            Some(TableFactorBuilder::Function(ref mut rel_builder)) => {
+                rel_builder.alias = value;
+            }
+            Some(TableFactorBuilder::TableFunction(ref mut rel_builder)) => {
+                if let Some(value) = &value {
+                    if let Some(alias) = rel_builder.alias.as_mut() {
+                        if alias
+                            .name
+                            .value
+                            .starts_with(UNNAMED_FLATTEN_SUBQUERY_PREFIX)
+                            && value.columns.len() == 1
+                        {
+                            let mut new_columns = alias.columns.clone();
+                            new_columns[4] = value.columns[0].clone();
+                            let new_alias = ast::TableAlias {
+                                name: value.name.clone(),
+                                columns: new_columns,
+                            };
+                            rel_builder.alias = Some(new_alias);
+                            return new;
+                        }
+                    }
+                }
+                rel_builder.alias = value;
+            }
             Some(TableFactorBuilder::Empty) => (),
             None => (),
         }
@@ -456,6 +495,8 @@ impl RelationBuilder {
             Some(TableFactorBuilder::Table(ref value)) => Some(value.build()?),
             Some(TableFactorBuilder::Derived(ref value)) => Some(value.build()?),
             Some(TableFactorBuilder::Unnest(ref value)) => Some(value.build()?),
+            Some(TableFactorBuilder::Function(ref value)) => Some(value.build()?),
+            Some(TableFactorBuilder::TableFunction(ref value)) => Some(value.build()?),
             Some(TableFactorBuilder::Empty) => None,
             None => return Err(Into::into(UninitializedFieldError::from("relation"))),
         })
@@ -657,6 +698,96 @@ impl UnnestRelationBuilder {
 }
 
 impl Default for UnnestRelationBuilder {
+    fn default() -> Self {
+        Self::create_empty()
+    }
+}
+
+#[derive(Clone)]
+pub struct FunctionRelationBuilder {
+    lateral: bool,
+    name: ast::ObjectName,
+    args: Vec<ast::FunctionArg>,
+    alias: Option<ast::TableAlias>,
+}
+
+#[allow(dead_code)]
+impl FunctionRelationBuilder {
+    pub fn lateral(&mut self, value: bool) -> &mut Self {
+        self.lateral = value;
+        self
+    }
+
+    pub fn name(&mut self, value: ast::ObjectName) -> &mut Self {
+        self.name = value;
+        self
+    }
+
+    pub fn args(&mut self, value: Vec<ast::FunctionArg>) -> &mut Self {
+        self.args = value;
+        self
+    }
+
+    pub fn alias(&mut self, value: Option<ast::TableAlias>) -> &mut Self {
+        self.alias = value;
+        self
+    }
+
+    pub fn build(&self) -> Result<ast::TableFactor, BuilderError> {
+        Ok(ast::TableFactor::Function {
+            lateral: self.lateral,
+            name: self.name.clone(),
+            args: self.args.clone(),
+            alias: self.alias.clone(),
+        })
+    }
+
+    fn create_empty() -> Self {
+        Self {
+            lateral: Default::default(),
+            name: ast::ObjectName(vec![]),
+            args: Default::default(),
+            alias: Default::default(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct TableFunctionRelationBuilder {
+    expr: Option<ast::Expr>,
+    alias: Option<ast::TableAlias>,
+}
+
+impl TableFunctionRelationBuilder {
+    pub fn expr(&mut self, value: ast::Expr) -> &mut Self {
+        self.expr = Some(value);
+        self
+    }
+
+    pub fn alias(&mut self, value: Option<ast::TableAlias>) -> &mut Self {
+        self.alias = value;
+        self
+    }
+
+    pub fn build(&self) -> Result<ast::TableFactor, BuilderError> {
+        Ok(ast::TableFactor::TableFunction {
+            expr: match self.expr {
+                Some(ref value) => value.clone(),
+                None => return Err(Into::into(UninitializedFieldError::from("expr"))),
+            },
+            alias: self.alias.clone(),
+        })
+    }
+
+    fn create_empty() -> Self {
+        Self {
+            expr: Default::default(),
+            alias: Default::default(),
+        }
+    }
+}
+
+impl Default for TableFunctionRelationBuilder {
     fn default() -> Self {
         Self::create_empty()
     }

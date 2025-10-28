@@ -2518,6 +2518,48 @@ fn test_unparse_left_semi_join_with_table_scan_projection() -> Result<()> {
 }
 
 #[test]
+fn test_unparse_unnest_to_table_flatten() -> Result<()> {
+    let unparser_dialect = CustomDialectBuilder::new()
+        .with_unnest_as_table_factor(true)
+        .with_unnest_to_flattened_table_factor(true)
+        .with_identifier_quote_style('"')
+        .build();
+    let unparser = Unparser::new(&unparser_dialect);
+
+    let plan = sql_to_plan("SELECT * FROM UNNEST([1,2,3])")?;
+    assert_snapshot!(
+        unparser.plan_to_sql(&plan).unwrap(),
+        @r#"SELECT "UNNEST(make_array(Int64(1),Int64(2),Int64(3)))" FROM TABLE(FLATTEN([1, 2, 3], '', false, false, 'ARRAY')) AS "__unnamed_flatten_subquery_1" ("SEQ", "KEY", "PATH", "INDEX", "UNNEST(make_array(Int64(1),Int64(2),Int64(3)))", "THIS")"#
+    );
+
+    let plan = sql_to_plan("SELECT * FROM UNNEST([1,2,3]) t(a)")?;
+    assert_snapshot!(
+        unparser.plan_to_sql(&plan).unwrap(),
+        @r#"SELECT "t"."a" FROM TABLE(FLATTEN([1, 2, 3], '', false, false, 'ARRAY')) AS "t" ("SEQ", "KEY", "PATH", "INDEX", "a", "THIS")"#
+    );
+
+    Ok(())
+}
+
+fn sql_to_plan(sql: &str) -> Result<LogicalPlan> {
+    let dialect = GenericDialect {};
+    let statement = Parser::new(&dialect).try_with_sql(sql)?.parse_statement()?;
+    let state = MockSessionState::default()
+        .with_aggregate_function(sum_udaf())
+        .with_aggregate_function(max_udaf())
+        .with_aggregate_function(grouping_udaf())
+        .with_window_function(rank_udwf())
+        .with_scalar_function(Arc::new(unicode::substr().as_ref().clone()))
+        .with_scalar_function(make_array_udf())
+        .with_expr_planner(Arc::new(CoreFunctionPlanner::default()))
+        .with_expr_planner(Arc::new(NestedFunctionPlanner))
+        .with_expr_planner(Arc::new(FieldAccessPlanner));
+    let context = MockContextProvider { state };
+    let sql_to_rel = SqlToRel::new(&context);
+    sql_to_rel.sql_statement_to_plan(statement)
+}
+
+#[test]
 fn test_like_filter() {
     let statement = generate_round_trip_statement(
         GenericDialect {},

@@ -198,6 +198,12 @@ pub trait Dialect: Send + Sync {
         false
     }
 
+    /// Allow the dialect to unparse UNNEST to a Snowflake FLATTEN table factor.
+    /// <https://docs.snowflake.com/en/sql-reference/functions/flatten#syntax>
+    fn unnest_to_snowflake_flattened_array_table_factor(&self) -> bool {
+        false
+    }
+
     /// Allows the dialect to override column alias unparsing if the dialect has specific rules.
     /// Returns None if the default unparsing should be used, or Some(String) if there is
     /// a custom implementation for the alias.
@@ -597,6 +603,7 @@ pub struct CustomDialect {
     window_func_support_window_frame: bool,
     full_qualified_col: bool,
     unnest_as_table_factor: bool,
+    unnest_to_flattened_table_factor: bool,
 }
 
 impl Default for CustomDialect {
@@ -625,6 +632,7 @@ impl Default for CustomDialect {
             window_func_support_window_frame: true,
             full_qualified_col: false,
             unnest_as_table_factor: false,
+            unnest_to_flattened_table_factor: false,
         }
     }
 }
@@ -746,6 +754,10 @@ impl Dialect for CustomDialect {
     fn unnest_as_table_factor(&self) -> bool {
         self.unnest_as_table_factor
     }
+
+    fn unnest_to_snowflake_flattened_array_table_factor(&self) -> bool {
+        self.unnest_to_flattened_table_factor
+    }
 }
 
 /// `CustomDialectBuilder` to build `CustomDialect` using builder pattern
@@ -783,6 +795,7 @@ pub struct CustomDialectBuilder {
     window_func_support_window_frame: bool,
     full_qualified_col: bool,
     unnest_as_table_factor: bool,
+    unnest_to_flattened_table_factor: bool,
 }
 
 impl Default for CustomDialectBuilder {
@@ -817,6 +830,7 @@ impl CustomDialectBuilder {
             window_func_support_window_frame: true,
             full_qualified_col: false,
             unnest_as_table_factor: false,
+            unnest_to_flattened_table_factor: false,
         }
     }
 
@@ -843,6 +857,7 @@ impl CustomDialectBuilder {
             window_func_support_window_frame: self.window_func_support_window_frame,
             full_qualified_col: self.full_qualified_col,
             unnest_as_table_factor: self.unnest_as_table_factor,
+            unnest_to_flattened_table_factor: self.unnest_to_flattened_table_factor,
         }
     }
 
@@ -981,6 +996,14 @@ impl CustomDialectBuilder {
 
     pub fn with_unnest_as_table_factor(mut self, unnest_as_table_factor: bool) -> Self {
         self.unnest_as_table_factor = unnest_as_table_factor;
+        self
+    }
+
+    pub fn with_unnest_to_flattened_table_factor(
+        mut self,
+        unnest_to_flattened_table_factor: bool,
+    ) -> Self {
+        self.unnest_to_flattened_table_factor = unnest_to_flattened_table_factor;
         self
     }
 }
