@@ -1056,7 +1056,9 @@ impl Unparser<'_> {
             {
                 return Ok(Some(TableFactorBuilder::TableFunction(flatten_relation)));
             }
-        } else if let Some(unnest_relation) = self.try_unnest_to_table_factor_sql(unnest)? {
+        } else if let Some(unnest_relation) =
+            self.try_unnest_to_table_factor_sql(unnest)?
+        {
             return Ok(Some(TableFactorBuilder::Unnest(unnest_relation)));
         }
         Ok(None)
