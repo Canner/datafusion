@@ -21,8 +21,6 @@ use std::ops::ControlFlow;
 use sqlparser::ast::helpers::attached_token::AttachedToken;
 use sqlparser::ast::{self, visit_expressions_mut, OrderByKind, SelectFlavor};
 
-use crate::unparser::utils::UNNAMED_FLATTEN_SUBQUERY_PREFIX;
-
 #[derive(Clone)]
 pub struct QueryBuilder {
     with: Option<ast::With>,
@@ -400,13 +398,13 @@ impl Default for TableWithJoinsBuilder {
 
 #[derive(Clone)]
 pub struct RelationBuilder {
-    relation: Option<TableFactorBuilder>,
+    pub relation: Option<TableFactorBuilder>,
 }
 
 #[allow(dead_code)]
 #[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
-pub(crate) enum TableFactorBuilder {
+pub enum TableFactorBuilder {
     Table(TableRelationBuilder),
     Derived(DerivedRelationBuilder),
     Unnest(UnnestRelationBuilder),
@@ -464,25 +462,6 @@ impl RelationBuilder {
                 rel_builder.alias = value;
             }
             Some(TableFactorBuilder::TableFunction(ref mut rel_builder)) => {
-                if let Some(value) = &value {
-                    if let Some(alias) = rel_builder.alias.as_mut() {
-                        if alias
-                            .name
-                            .value
-                            .starts_with(UNNAMED_FLATTEN_SUBQUERY_PREFIX)
-                            && value.columns.len() == 1
-                        {
-                            let mut new_columns = alias.columns.clone();
-                            new_columns[4] = value.columns[0].clone();
-                            let new_alias = ast::TableAlias {
-                                name: value.name.clone(),
-                                columns: new_columns,
-                            };
-                            rel_builder.alias = Some(new_alias);
-                            return new;
-                        }
-                    }
-                }
                 rel_builder.alias = value;
             }
             Some(TableFactorBuilder::Empty) => (),
@@ -754,8 +733,8 @@ impl FunctionRelationBuilder {
 
 #[derive(Clone)]
 pub struct TableFunctionRelationBuilder {
-    expr: Option<ast::Expr>,
-    alias: Option<ast::TableAlias>,
+    pub expr: Option<ast::Expr>,
+    pub alias: Option<ast::TableAlias>,
 }
 
 impl TableFunctionRelationBuilder {

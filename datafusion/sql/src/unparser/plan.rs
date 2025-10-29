@@ -31,17 +31,14 @@ use super::{
     },
     Unparser,
 };
+use crate::unparser::ast::{TableFactorBuilder, UnnestRelationBuilder};
 use crate::unparser::extension_unparser::{
     UnparseToStatementResult, UnparseWithinStatementResult,
 };
 use crate::unparser::utils::{find_unnest_node_until_relation, unproject_agg_exprs};
-use crate::unparser::{
-    ast::{TableFactorBuilder, TableFunctionRelationBuilder, UnnestRelationBuilder},
-    utils::UNNAMED_FLATTEN_SUBQUERY_PREFIX,
-};
 use crate::utils::UNNEST_PLACEHOLDER;
 use datafusion_common::{
-    internal_err, not_impl_err, plan_err,
+    internal_err, not_impl_err,
     tree_node::{TransformedResult, TreeNode},
     Column, DataFusionError, Result, ScalarValue, TableReference,
 };
@@ -51,13 +48,7 @@ use datafusion_expr::{
     LogicalPlanBuilder, Operator, Projection, SortExpr, TableScan, Unnest,
     UserDefinedLogicalNode,
 };
-use sqlparser::{
-    ast::{
-        self, Function, FunctionArgumentList, Ident, OrderByKind, SetExpr,
-        TableAliasColumnDef, ValueWithSpan,
-    },
-    tokenizer::Span,
-};
+use sqlparser::ast::{self, Ident, OrderByKind, SetExpr, TableAliasColumnDef};
 use std::{sync::Arc, vec};
 
 /// Convert a DataFusion [`LogicalPlan`] to [`ast::Statement`]
@@ -877,10 +868,16 @@ impl Unparser<'_> {
                     self.select_to_sql_recursively(&plan, query, select, relation)?;
                 }
 
-                relation.alias(Some(
-                    self.new_table_alias(plan_alias.alias.table().to_string(), columns),
-                ));
+                let new_alias =
+                    self.new_table_alias(plan_alias.alias.table().to_string(), columns);
 
+                if self
+                    .dialect
+                    .relation_alias_overrides(relation, Some(&new_alias))
+                {
+                    return Ok(());
+                }
+                relation.alias(Some(new_alias));
                 Ok(())
             }
             LogicalPlan::Union(union) => {
@@ -1047,18 +1044,14 @@ impl Unparser<'_> {
         unnest: &Unnest,
         columns: &[Ident],
     ) -> Result<Option<TableFactorBuilder>> {
-        if self
+        let dialect_flatten_relation = self
             .dialect
-            .unnest_to_snowflake_flattened_array_table_factor()
-        {
-            if let Some(flatten_relation) =
-                self.try_unnest_to_falttened_array_table_factor(unnest, columns)?
-            {
-                return Ok(Some(TableFactorBuilder::TableFunction(flatten_relation)));
-            }
-        } else if let Some(unnest_relation) =
-            self.try_unnest_to_table_factor_sql(unnest)?
-        {
+            .unparse_unnest_table_factor(unnest, columns, self)?;
+        if dialect_flatten_relation.is_some() {
+            return Ok(dialect_flatten_relation);
+        }
+
+        if let Some(unnest_relation) = self.try_unnest_to_table_factor_sql(unnest)? {
             return Ok(Some(TableFactorBuilder::Unnest(unnest_relation)));
         }
         Ok(None)
@@ -1092,105 +1085,6 @@ impl Unparser<'_> {
         unnest_relation.array_exprs(exprs);
 
         Ok(Some(unnest_relation))
-    }
-
-    fn try_unnest_to_falttened_array_table_factor(
-        &self,
-        unnest: &Unnest,
-        columns: &[Ident],
-    ) -> Result<Option<TableFunctionRelationBuilder>> {
-        let LogicalPlan::Projection(projection) = unnest.input.as_ref() else {
-            return Ok(None);
-        };
-
-        if !matches!(projection.input.as_ref(), LogicalPlan::EmptyRelation(_)) {
-            // It may be possible that UNNEST is used as a source for the query.
-            // However, at this point, we don't yet know if it is just a single expression
-            // from another source or if it's from UNNEST.
-            //
-            // Unnest(Projection(EmptyRelation)) denotes a case with `UNNEST([...])`,
-            // which is normally safe to unnest as a table factor.
-            // However, in the future, more comprehensive checks can be added here.
-            return Ok(None);
-        };
-
-        let mut table_function_relation = TableFunctionRelationBuilder::default();
-        let mut exprs = projection
-            .expr
-            .iter()
-            .map(|e| self.expr_to_sql(e))
-            .collect::<Result<Vec<_>>>()?;
-
-        if exprs.len() != 1 {
-            // Snowflake FLATTEN function only supports a single argument.
-            return plan_err!(
-                "Only support one argument for Snowflake FLATTEN, found {}",
-                exprs.len()
-            );
-        }
-
-        if columns.len() != 1 {
-            // Snowflake FLATTEN function only supports a single output column.
-            return plan_err!(
-                "Only support one output column for Snowflake FLATTEN, found {}",
-                columns.len()
-            );
-        }
-
-        exprs.extend(vec![
-            ast::Expr::Value(ValueWithSpan {
-                value: ast::Value::SingleQuotedString("".to_string()),
-                span: Span::empty(),
-            }),
-            ast::Expr::Value(ValueWithSpan {
-                value: ast::Value::Boolean(false),
-                span: Span::empty(),
-            }),
-            ast::Expr::Value(ValueWithSpan {
-                value: ast::Value::Boolean(false),
-                span: Span::empty(),
-            }),
-            ast::Expr::Value(ValueWithSpan {
-                value: ast::Value::SingleQuotedString("ARRAY".to_string()),
-                span: Span::empty(),
-            }),
-        ]);
-
-        // To get the flattened result, we need to override the output columns of the FLATTEN function.
-        // The 4th column corresponds to the flattened value, which we will alias to the desired output column name.
-        // https://docs.snowflake.com/en/sql-reference/functions/flatten#output
-        let column_alias = vec![
-            self.new_ident_quoted_if_needs("SEQ".to_string()),
-            self.new_ident_quoted_if_needs("KEY".to_string()),
-            self.new_ident_quoted_if_needs("PATH".to_string()),
-            self.new_ident_quoted_if_needs("INDEX".to_string()),
-            columns[0].clone(),
-            self.new_ident_quoted_if_needs("THIS".to_string()),
-        ];
-
-        let func_expr = ast::Expr::Function(Function {
-            name: vec![Ident::new("FLATTEN")].into(),
-            uses_odbc_syntax: false,
-            parameters: ast::FunctionArguments::None,
-            args: ast::FunctionArguments::List(FunctionArgumentList {
-                args: exprs
-                    .into_iter()
-                    .map(|e| ast::FunctionArg::Unnamed(ast::FunctionArgExpr::Expr(e)))
-                    .collect(),
-                duplicate_treatment: None,
-                clauses: vec![],
-            }),
-            filter: None,
-            null_treatment: None,
-            over: None,
-            within_group: vec![],
-        });
-        table_function_relation.expr(func_expr);
-        table_function_relation.alias(Some(self.new_table_alias(
-            self.alias_generator.next(UNNAMED_FLATTEN_SUBQUERY_PREFIX),
-            column_alias,
-        )));
-        Ok(Some(table_function_relation))
     }
 
     fn is_scan_with_pushdown(scan: &TableScan) -> bool {
@@ -1535,7 +1429,7 @@ impl Unparser<'_> {
         self.binary_op_to_sql(lhs, rhs, ast::BinaryOperator::And)
     }
 
-    fn new_table_alias(&self, alias: String, columns: Vec<Ident>) -> ast::TableAlias {
+    pub fn new_table_alias(&self, alias: String, columns: Vec<Ident>) -> ast::TableAlias {
         let columns = columns
             .into_iter()
             .map(|ident| TableAliasColumnDef {

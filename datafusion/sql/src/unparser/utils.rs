@@ -35,8 +35,6 @@ use indexmap::IndexSet;
 use sqlparser::ast;
 use sqlparser::tokenizer::Span;
 
-pub static UNNAMED_FLATTEN_SUBQUERY_PREFIX: &str = "__unnamed_flatten_subquery";
-
 /// Recursively searches children of [LogicalPlan] to find an Aggregate node if exists
 /// prior to encountering a Join, TableScan, or a nested subquery (derived table factor).
 /// If an Aggregate or node is not found prior to this or at all before reaching the end

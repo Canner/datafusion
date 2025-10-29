@@ -36,7 +36,7 @@ use datafusion_sql::planner::{ContextProvider, PlannerContext, SqlToRel};
 use datafusion_sql::unparser::dialect::{
     BigQueryDialect, CustomDialectBuilder, DefaultDialect as UnparserDefaultDialect,
     DefaultDialect, Dialect as UnparserDialect, MySqlDialect as UnparserMySqlDialect,
-    PostgreSqlDialect as UnparserPostgreSqlDialect, SqliteDialect,
+    PostgreSqlDialect as UnparserPostgreSqlDialect, SnowflakeDialect, SqliteDialect,
 };
 use datafusion_sql::unparser::{expr_to_sql, plan_to_sql, Unparser};
 use insta::assert_snapshot;
@@ -2519,11 +2519,7 @@ fn test_unparse_left_semi_join_with_table_scan_projection() -> Result<()> {
 
 #[test]
 fn test_unparse_unnest_to_table_flatten() -> Result<()> {
-    let unparser_dialect = CustomDialectBuilder::new()
-        .with_unnest_as_table_factor(true)
-        .with_unnest_to_flattened_table_factor(true)
-        .with_identifier_quote_style('"')
-        .build();
+    let unparser_dialect = SnowflakeDialect {};
     let unparser = Unparser::new(&unparser_dialect);
 
     let plan = sql_to_plan("SELECT * FROM UNNEST([1,2,3])")?;

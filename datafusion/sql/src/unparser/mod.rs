@@ -59,7 +59,7 @@ pub struct Unparser<'a> {
     dialect: &'a dyn Dialect,
     pretty: bool,
     extension_unparsers: Vec<Arc<dyn UserDefinedLogicalNodeUnparser>>,
-    alias_generator: AliasGenerator,
+    pub alias_generator: AliasGenerator,
 }
 
 impl<'a> Unparser<'a> {
