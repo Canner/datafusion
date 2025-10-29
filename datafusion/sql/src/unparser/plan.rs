@@ -22,8 +22,7 @@ use super::{
     },
     rewrite::{
         inject_column_aliases_into_subquery, normalize_union_schema,
-        rewrite_plan_for_sort_on_non_projected_fields,
-        subquery_alias_inner_query_and_columns, TableAliasRewriter,
+        rewrite_plan_for_sort_on_non_projected_fields, TableAliasRewriter,
     },
     utils::{
         find_agg_node_within_select, find_unnest_node_within_select,
@@ -32,7 +31,7 @@ use super::{
     },
     Unparser,
 };
-use crate::unparser::ast::UnnestRelationBuilder;
+use crate::unparser::ast::{TableFactorBuilder, UnnestRelationBuilder};
 use crate::unparser::extension_unparser::{
     UnparseToStatementResult, UnparseWithinStatementResult,
 };
@@ -377,21 +376,6 @@ impl Unparser<'_> {
                 } else {
                     None
                 };
-                if self.dialect.unnest_as_table_factor() && unnest_input_type.is_some() {
-                    if let LogicalPlan::Unnest(unnest) = &p.input.as_ref() {
-                        if let Some(unnest_relation) =
-                            self.try_unnest_to_table_factor_sql(unnest)?
-                        {
-                            relation.unnest(unnest_relation);
-                            return self.select_to_sql_recursively(
-                                p.input.as_ref(),
-                                query,
-                                select,
-                                relation,
-                            );
-                        }
-                    }
-                }
 
                 // If it's a unnest projection, we should provide the table column alias
                 // to provide a column name for the unnest relation.
@@ -405,6 +389,36 @@ impl Unparser<'_> {
                 } else {
                     vec![]
                 };
+
+                if self.dialect.unnest_as_table_factor() && unnest_input_type.is_some() {
+                    if let LogicalPlan::Unnest(unnest) = &p.input.as_ref() {
+                        if let Some(table_factor) =
+                            self.unparse_unnest_table_factor(unnest, &columns)?
+                        {
+                            match table_factor {
+                                TableFactorBuilder::Unnest(unnest) => {
+                                    relation.unnest(unnest)
+                                }
+                                TableFactorBuilder::TableFunction(table_function) => {
+                                    relation.table_function(table_function)
+                                }
+                                _ => {
+                                    return internal_err!(
+                                        "Unexpected table factor type for unnest"
+                                    );
+                                }
+                            };
+
+                            return self.select_to_sql_recursively(
+                                p.input.as_ref(),
+                                query,
+                                select,
+                                relation,
+                            );
+                        }
+                    }
+                }
+
                 // Projection can be top-level plan for derived table
                 if select.already_projected() {
                     return self.derive_with_dialect_alias(
@@ -814,7 +828,7 @@ impl Unparser<'_> {
             }
             LogicalPlan::SubqueryAlias(plan_alias) => {
                 let (plan, mut columns) =
-                    subquery_alias_inner_query_and_columns(plan_alias);
+                    self.subquery_alias_inner_query_and_columns(plan_alias);
                 let unparsed_table_scan = Self::unparse_table_scan_pushdown(
                     plan,
                     Some(plan_alias.alias.clone()),
@@ -854,10 +868,16 @@ impl Unparser<'_> {
                     self.select_to_sql_recursively(&plan, query, select, relation)?;
                 }
 
-                relation.alias(Some(
-                    self.new_table_alias(plan_alias.alias.table().to_string(), columns),
-                ));
+                let new_alias =
+                    self.new_table_alias(plan_alias.alias.table().to_string(), columns);
 
+                if self
+                    .dialect
+                    .relation_alias_overrides(relation, Some(&new_alias))
+                {
+                    return Ok(());
+                }
+                relation.alias(Some(new_alias));
                 Ok(())
             }
             LogicalPlan::Union(union) => {
@@ -1017,6 +1037,24 @@ impl Unparser<'_> {
             }
         }
         None
+    }
+
+    fn unparse_unnest_table_factor(
+        &self,
+        unnest: &Unnest,
+        columns: &[Ident],
+    ) -> Result<Option<TableFactorBuilder>> {
+        let dialect_flatten_relation = self
+            .dialect
+            .unparse_unnest_table_factor(unnest, columns, self)?;
+        if dialect_flatten_relation.is_some() {
+            return Ok(dialect_flatten_relation);
+        }
+
+        if let Some(unnest_relation) = self.try_unnest_to_table_factor_sql(unnest)? {
+            return Ok(Some(TableFactorBuilder::Unnest(unnest_relation)));
+        }
+        Ok(None)
     }
 
     fn try_unnest_to_table_factor_sql(
@@ -1391,7 +1429,7 @@ impl Unparser<'_> {
         self.binary_op_to_sql(lhs, rhs, ast::BinaryOperator::And)
     }
 
-    fn new_table_alias(&self, alias: String, columns: Vec<Ident>) -> ast::TableAlias {
+    pub fn new_table_alias(&self, alias: String, columns: Vec<Ident>) -> ast::TableAlias {
         let columns = columns
             .into_iter()
             .map(|ident| TableAliasColumnDef {
