@@ -34,9 +34,10 @@ use datafusion_functions_nested::map::map_udf;
 use datafusion_functions_window::rank::rank_udwf;
 use datafusion_sql::planner::{ContextProvider, PlannerContext, SqlToRel};
 use datafusion_sql::unparser::dialect::{
-    BigQueryDialect, CustomDialectBuilder, DefaultDialect as UnparserDefaultDialect,
-    DefaultDialect, Dialect as UnparserDialect, MySqlDialect as UnparserMySqlDialect,
-    PostgreSqlDialect as UnparserPostgreSqlDialect, SnowflakeDialect, SqliteDialect,
+    BigQueryDialect, CustomDialect, CustomDialectBuilder,
+    DefaultDialect as UnparserDefaultDialect, DefaultDialect, Dialect as UnparserDialect,
+    MySqlDialect as UnparserMySqlDialect, PostgreSqlDialect as UnparserPostgreSqlDialect,
+    SnowflakeDialect, SqliteDialect,
 };
 use datafusion_sql::unparser::{expr_to_sql, plan_to_sql, Unparser};
 use insta::assert_snapshot;
@@ -2707,4 +2708,38 @@ fn test_struct_expr3() {
         statement,
         @r#"SELECT test.c1."metadata".product."name" FROM (SELECT {"metadata": {product: {"name": 'Product Name'}}} AS c1) AS test"#
     );
+}
+
+#[test]
+fn test_literal_gbk() -> Result<(), DataFusionError> {
+    let sql = r#"
+        select 'ABC' as col1, first_name, min(id) from person group by 1, 2
+
+    "#;
+    let unparser = CustomDialectBuilder::new()
+        .with_support_literal_group_by_key(false)
+        .build();
+    roundtrip_statement_with_dialect_helper!(
+        sql: sql,
+        parser_dialect: GenericDialect {},
+        unparser_dialect: unparser,
+        expected: @r#"SELECT 'ABC' AS col1, person.first_name, min(person.id) FROM person GROUP BY person.first_name"#,
+    );
+
+    let unparser = BigQueryDialect {};
+    roundtrip_statement_with_dialect_helper!(
+        sql: sql,
+        parser_dialect: GenericDialect {},
+        unparser_dialect: unparser,
+        expected: @r#"SELECT 'ABC' AS `col1`, `person`.`first_name`, min(`person`.`id`) FROM `person` GROUP BY `person`.`first_name`"#,
+    );
+
+    let unparser = CustomDialect::default();
+    roundtrip_statement_with_dialect_helper!(
+        sql: sql,
+        parser_dialect: GenericDialect {},
+        unparser_dialect: unparser,
+        expected: @r#"SELECT 'ABC' AS col1, person.first_name, min(person.id) FROM person GROUP BY 'ABC', person.first_name"#,
+    );
+    Ok(())
 }

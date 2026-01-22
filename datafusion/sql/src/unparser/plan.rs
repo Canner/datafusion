@@ -252,6 +252,10 @@ impl Unparser<'_> {
                 select.group_by(ast::GroupByExpr::Expressions(
                     agg.group_expr
                         .iter()
+                        .filter(|expr| {
+                            self.dialect.support_literal_group_by_key()
+                                || !matches!(expr, Expr::Literal(_, _))
+                        })
                         .map(|expr| self.expr_to_sql(expr))
                         .collect::<Result<Vec<_>>>()?,
                     vec![],
@@ -556,6 +560,10 @@ impl Unparser<'_> {
                     select.group_by(ast::GroupByExpr::Expressions(
                         agg.group_expr
                             .iter()
+                            .filter(|expr| {
+                                self.dialect.support_literal_group_by_key()
+                                    || !matches!(expr, Expr::Literal(_, _))
+                            })
                             .map(|expr| self.expr_to_sql(expr))
                             .collect::<Result<Vec<_>>>()?,
                         vec![],
