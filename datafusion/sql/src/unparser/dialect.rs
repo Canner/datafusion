@@ -245,6 +245,12 @@ pub trait Dialect: Send + Sync {
     fn to_unicode_string_literal(&self, _s: &str) -> Option<ast::Expr> {
         None
     }
+
+    /// Whether the dialect supports using literal values as GROUP BY keys.
+    /// Some dialects like BigQuery do not support using literal values as GROUP BY keys.
+    fn support_literal_group_by_key(&self) -> bool {
+        true
+    }
 }
 
 /// `IntervalStyle` to use for unparsing
@@ -582,6 +588,10 @@ impl Dialect for BigQueryDialect {
     fn unnest_as_table_factor(&self) -> bool {
         true
     }
+
+    fn support_literal_group_by_key(&self) -> bool {
+        false
+    }
 }
 
 impl BigQueryDialect {
@@ -786,6 +796,7 @@ pub struct CustomDialect {
     window_func_support_window_frame: bool,
     full_qualified_col: bool,
     unnest_as_table_factor: bool,
+    support_literal_group_by_key: bool,
 }
 
 impl Default for CustomDialect {
@@ -814,6 +825,7 @@ impl Default for CustomDialect {
             window_func_support_window_frame: true,
             full_qualified_col: false,
             unnest_as_table_factor: false,
+            support_literal_group_by_key: true,
         }
     }
 }
@@ -935,6 +947,10 @@ impl Dialect for CustomDialect {
     fn unnest_as_table_factor(&self) -> bool {
         self.unnest_as_table_factor
     }
+
+    fn support_literal_group_by_key(&self) -> bool {
+        self.support_literal_group_by_key
+    }
 }
 
 /// `CustomDialectBuilder` to build `CustomDialect` using builder pattern
@@ -973,6 +989,7 @@ pub struct CustomDialectBuilder {
     full_qualified_col: bool,
     unnest_as_table_factor: bool,
     unnest_to_flattened_table_factor: bool,
+    support_literal_group_by_key: bool,
 }
 
 impl Default for CustomDialectBuilder {
@@ -1008,6 +1025,7 @@ impl CustomDialectBuilder {
             full_qualified_col: false,
             unnest_as_table_factor: false,
             unnest_to_flattened_table_factor: false,
+            support_literal_group_by_key: true,
         }
     }
 
@@ -1034,6 +1052,7 @@ impl CustomDialectBuilder {
             window_func_support_window_frame: self.window_func_support_window_frame,
             full_qualified_col: self.full_qualified_col,
             unnest_as_table_factor: self.unnest_as_table_factor,
+            support_literal_group_by_key: self.support_literal_group_by_key,
         }
     }
 
@@ -1180,6 +1199,14 @@ impl CustomDialectBuilder {
         unnest_to_flattened_table_factor: bool,
     ) -> Self {
         self.unnest_to_flattened_table_factor = unnest_to_flattened_table_factor;
+        self
+    }
+
+    pub fn with_support_literal_group_by_key(
+        mut self,
+        support_literal_group_by_key: bool,
+    ) -> Self {
+        self.support_literal_group_by_key = support_literal_group_by_key;
         self
     }
 }
