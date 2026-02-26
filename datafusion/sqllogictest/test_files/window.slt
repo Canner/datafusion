@@ -440,6 +440,7 @@ LIMIT 5
 781 100
 
 # window_frame_duration_type
+query I
 WITH t1 AS (
   SELECT now() AS c1, timestamp '2011-01-01 12:00:00' AS c2
 )
