@@ -439,6 +439,14 @@ LIMIT 5
 781 100
 781 100
 
+# window_frame_duration_type
+WITH t1 AS (
+  SELECT now() AS c1, timestamp '2011-01-01 12:00:00' AS c2
+)
+SELECT rank() OVER (ORDER BY c2 - c1) FROM t1;
+----
+1
+
 # window_frame_rows_preceding
 query IRI
 SELECT
