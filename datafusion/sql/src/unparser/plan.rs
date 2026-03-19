@@ -406,6 +406,9 @@ impl Unparser<'_> {
                                 TableFactorBuilder::TableFunction(table_function) => {
                                     relation.table_function(table_function)
                                 }
+                                TableFactorBuilder::Function(function) => {
+                                    relation.function(function)
+                                }
                                 _ => {
                                     return internal_err!(
                                         "Unexpected table factor type for unnest"

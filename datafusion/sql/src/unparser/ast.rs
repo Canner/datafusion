@@ -731,6 +731,12 @@ impl FunctionRelationBuilder {
     }
 }
 
+impl Default for FunctionRelationBuilder {
+    fn default() -> Self {
+        Self::create_empty()
+    }
+}
+
 #[derive(Clone)]
 pub struct TableFunctionRelationBuilder {
     pub expr: Option<ast::Expr>,
